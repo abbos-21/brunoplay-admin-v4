@@ -38,6 +38,10 @@ interface Player {
   lastIp: string
   botStarted: boolean
   botBlocked: boolean
+  adsDisabled: boolean
+  archived: boolean
+  resetAt: string | null
+  resetTelegramId: number | null
   createdAt: string
   lastSeenAt: string
 }
@@ -68,6 +72,7 @@ const canNote = computed(() => auth.can('players.note'))
 const canBonus = computed(() => auth.can('players.inviteBonus'))
 const canDelete = computed(() => auth.can('players.delete'))
 const canLedger = computed(() => auth.can('ledger.read'))
+const canManage = computed(() => auth.can('players.manage'))
 
 const flags = computed(() => {
   const f = p.value?.flags
@@ -116,6 +121,53 @@ async function saveBonus(useDefault: boolean) {
   }
 }
 
+// ---- balances
+const balanceOpen = ref(false)
+const balanceForm = ref({ coins: 0, stars: 0, reason: '' })
+function openBalance() {
+  balanceForm.value = { coins: p.value?.coins ?? 0, stars: p.value?.stars ?? 0, reason: '' }
+  balanceOpen.value = true
+}
+const balanceError = computed(() => {
+  const f = balanceForm.value
+  if (![f.coins, f.stars].every((v) => Number.isInteger(v) && v >= 0)) return 'Coins and stars must be whole numbers, 0 or more.'
+  if (f.coins === p.value?.coins && f.stars === p.value?.stars) return 'Nothing is changed.'
+  if (f.reason.trim().length < 3) return 'Write the reason (at least 3 characters): it is saved in the money history.'
+  return ''
+})
+async function saveBalance() {
+  if (balanceError.value || !p.value) return
+  const f = balanceForm.value
+  const body: Record<string, unknown> = { reason: f.reason.trim() }
+  if (f.coins !== p.value.coins) body.coins = f.coins
+  if (f.stars !== p.value.stars) body.stars = f.stars
+  if (await run(() => api.post(`/admin/players/${id}/adjust`, body), 'Balances saved')) {
+    balanceOpen.value = false
+    load(true)
+    if (canLedger.value) loadLedger()
+  }
+}
+
+// ---- ads
+async function setAdsDisabled(off: boolean) {
+  if (await run(() => api.patch(`/admin/players/${id}/flags`, { adsDisabled: off }), off ? 'Ads are off for this player' : 'Ads are on for this player')) load(true)
+}
+
+// ---- reset
+const resetOpen = ref(false)
+const resetReason = ref('')
+const resetConfirm = ref('')
+async function resetPlayer() {
+  if (resetConfirm.value !== 'RESET' || resetReason.value.trim().length < 3) return
+  if (await run(() => api.post(`/admin/players/${id}/reset`, { confirm: true, reason: resetReason.value.trim() }), 'Player reset. They start from zero the next time they open the game.')) {
+    resetOpen.value = false
+    resetConfirm.value = ''
+    resetReason.value = ''
+    load(true)
+    if (canLedger.value) loadLedger()
+  }
+}
+
 // ---- delete
 const deleting = ref(false)
 const confirmText = ref('')
@@ -161,7 +213,13 @@ function startNote() {
       <span v-if="p?.isBlocked" class="badge bad">blocked</span>
       <span v-if="p?.holdWithdrawals" class="badge warn">withdrawals held</span>
       <span v-if="p?.holdRewards" class="badge warn">rewards held</span>
+      <span v-if="p?.adsDisabled" class="badge info">ads off</span>
+      <span v-if="p?.archived" class="badge bad">{{ p.resetAt ? 'archived (reset)' : 'erased' }}</span>
     </div>
+    <p v-if="p?.archived && p.resetAt" class="hint">
+      This player was reset on {{ dateTime(p.resetAt) }}. This is the old record, kept for the money history. The person starts again as a new player
+      the next time they open the game (their Telegram id was <code>{{ p.resetTelegramId }}</code>); find the new record in Players by that id.
+    </p>
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="loading && !p" class="muted">Loading…</p>
 
@@ -189,7 +247,11 @@ function startNote() {
         <div class="card">
           <h2>Game</h2>
           <dl class="kv">
-            <dt>Coins</dt><dd><b>{{ num(p.coins) }}</b></dd>
+            <dt>Coins</dt>
+            <dd>
+              <b>{{ num(p.coins) }}</b>
+              <button v-if="canManage && !p.archived" class="sm" style="margin-left: 8px" @click="openBalance">Edit coins and stars</button>
+            </dd>
             <dt>Stars</dt><dd><b>{{ num(p.stars) }}</b></dd>
             <dt>Coins earned in total</dt><dd>{{ num(p.totalCoinsEarned) }}</dd>
             <dt>Level</dt><dd>{{ p.level }} <span class="muted">(rate card {{ p.miningLevel }}, capacity card {{ p.capacityLevel }})</span></dd>
@@ -220,6 +282,14 @@ function startNote() {
           </template>
           <span class="grow" />
           <button v-if="canDelete" class="danger" :disabled="busy" @click="deleting = true">Erase personal data…</button>
+        </div>
+        <div v-if="canManage && !p.archived" class="row" style="margin-top: 12px">
+          <label class="row">
+            <input type="checkbox" :checked="p.adsDisabled" :disabled="busy" @change="setAdsDisabled(($event.target as HTMLInputElement).checked)" />
+            No ads for this player (every action works without watching an ad)
+          </label>
+          <span class="grow" />
+          <button class="danger" :disabled="busy" @click="resetOpen = true">Reset player…</button>
         </div>
         <p v-if="p.isBlocked" class="err" style="margin-bottom: 0">Blocked: {{ p.blockReason || 'no reason given' }}</p>
 
@@ -267,6 +337,42 @@ function startNote() {
       <div class="actions">
         <button @click="saveBonus(true)">Use the default</button>
         <button class="primary" :disabled="busy || bonusValue === null || bonusValue < 0" @click="saveBonus(false)">Save</button>
+      </div>
+    </Modal>
+
+    <Modal v-if="balanceOpen" title="Edit coins and stars" @close="balanceOpen = false">
+      <p class="muted" style="margin-top: 0">
+        Type the amounts the player should have <b>now</b>. The difference is written to the money history as an admin correction with your reason.
+      </p>
+      <div class="col">
+        <label class="field">Coins<input v-model.number="balanceForm.coins" type="number" min="0" step="1" /></label>
+        <label class="field">Stars<input v-model.number="balanceForm.stars" type="number" min="0" step="1" /></label>
+        <label class="field">Reason (saved in the history)<input v-model="balanceForm.reason" maxlength="200" placeholder="for example: compensation for a bug" /></label>
+      </div>
+      <p v-if="balanceError" class="hint">{{ balanceError }}</p>
+      <div class="actions">
+        <button @click="balanceOpen = false">Cancel</button>
+        <button class="primary" :disabled="busy || !!balanceError" @click="saveBalance">Save</button>
+      </div>
+    </Modal>
+
+    <Modal v-if="resetOpen" title="Reset this player" @close="resetOpen = false">
+      <p style="margin-top: 0">
+        The player starts again from zero: level 1, no coins, no stars, no cards, boosters, tasks, gifts or streaks. This old record is archived with its whole money
+        history (the coins and stars it still had are taken off through the money history). The person becomes a new player the next time they open the game.
+      </p>
+      <ul class="hint">
+        <li>Friends and the inviter are <b>not</b> carried over: the new player has no inviter.</li>
+        <li>It is refused while the player has a withdrawal, a gift claim or a top-up that is not finished, or while they are blocked.</li>
+        <li><b>This cannot be undone.</b></li>
+      </ul>
+      <div class="col">
+        <label class="field">Reason (saved in the history)<input v-model="resetReason" maxlength="200" /></label>
+        <label class="field">Type <code>RESET</code> to confirm<input v-model="resetConfirm" /></label>
+      </div>
+      <div class="actions">
+        <button @click="resetOpen = false">Cancel</button>
+        <button class="danger" :disabled="busy || resetConfirm !== 'RESET' || resetReason.trim().length < 3" @click="resetPlayer">Reset</button>
       </div>
     </Modal>
 
