@@ -47,6 +47,7 @@ const groups: { title: string; items: Item[] }[] = [
     title: 'Game',
     items: [
       { to: '/settings', label: 'Settings', icon: '⚙️', perm: 'settings.read' },
+      { to: '/ads', label: 'Ads', icon: '📺', perm: 'settings.read' },
       { to: '/tasks', label: 'Tasks', icon: '✅', perm: 'tasks.read' },
       { to: '/combo', label: 'Daily combo', icon: '🧩', perm: 'combo.read' },
       { to: '/tournaments', label: 'Tournaments', icon: '🏆', perm: 'tournaments.read' },
