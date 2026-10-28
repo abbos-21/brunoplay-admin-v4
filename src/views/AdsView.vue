@@ -5,7 +5,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useBusy, useLoader } from '@/composables/useBusy'
 import { useToast } from '@/composables/useToast'
 
-interface Field { key: string; label: string; help: string; kind: 'string' | 'bool'; value: string | boolean }
+interface Field { key: string; label: string; help: string; kind: 'string' | 'bool' | 'number'; value: string | boolean | number }
 interface Webhook { label: string; url: string; note: string }
 interface Provider {
   id: string
@@ -61,8 +61,17 @@ const serving = computed(() =>
 const nobody = computed(() => !serving.value.length)
 
 async function save() {
-  const fields: Record<string, string | boolean> = {}
-  for (const p of list.value) for (const f of p.fields) fields[f.key] = typeof f.value === 'string' ? f.value.trim() : f.value
+  const fields: Record<string, string | boolean | number> = {}
+  for (const p of list.value) {
+    for (const f of p.fields) {
+      if (f.kind === 'number') fields[f.key] = f.value === '' ? NaN : Number(f.value)
+      else fields[f.key] = typeof f.value === 'string' ? f.value.trim() : f.value
+    }
+  }
+  if (Object.values(fields).some((v) => typeof v === 'number' && !Number.isFinite(v))) {
+    toast.error('Type a whole number in the seconds field.')
+    return
+  }
   const out = await run(
     () => api.put<Page>('/admin/ads/providers', { providers: list.value.map((p) => ({ id: p.id, enabled: p.enabled })), fields }),
     'Saved. New ads follow it within a few seconds.',
@@ -128,6 +137,11 @@ async function copy(text: string) {
             <label v-if="f.kind === 'bool'" class="row">
               <input v-model="f.value" type="checkbox" :disabled="!canWrite || busy" />
               {{ f.label }} <span class="hint">{{ f.help }}</span>
+            </label>
+            <label v-else-if="f.kind === 'number'" class="field">
+              {{ f.label }}
+              <input v-model.number="f.value" type="number" min="0" max="120" step="1" :disabled="!canWrite || busy" style="max-width: 140px" />
+              <span class="hint">{{ f.help }}</span>
             </label>
             <label v-else class="field">
               {{ f.label }}
