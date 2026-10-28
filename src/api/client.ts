@@ -1,4 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
+/** Where the API is: pictures (gift images) are plain <img> addresses under it. */
+export const API_BASE: string = BASE
 const ACCESS = 'bp.admin.access'
 const REFRESH = 'bp.admin.refresh'
 

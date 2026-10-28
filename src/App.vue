@@ -40,6 +40,7 @@ const groups: { title: string; items: Item[] }[] = [
       { to: '/players', label: 'Players', icon: '👥', perm: 'players.read' },
       { to: '/risk', label: 'Risk review', icon: '🛡️', perm: 'players.read' },
       { to: '/gifts', label: 'Gift claims', icon: '🎁', perm: 'gifts.read' },
+      { to: '/gift-catalog', label: 'Gift catalog', icon: '🖼️', perm: 'settings.read' },
     ],
   },
   {

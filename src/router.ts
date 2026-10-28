@@ -21,6 +21,7 @@ export const router = createRouter({
     { path: '/players/:id', component: () => import('./views/PlayerView.vue'), meta: { perm: 'players.read', title: 'Player' } },
     { path: '/risk', component: () => import('./views/RiskView.vue'), meta: { perm: 'players.read', title: 'Risk review' } },
     { path: '/gifts', component: () => import('./views/GiftsView.vue'), meta: { perm: 'gifts.read', title: 'Gift claims' } },
+    { path: '/gift-catalog', component: () => import('./views/GiftCatalogView.vue'), meta: { perm: 'settings.read', title: 'Gift catalog' } },
     { path: '/games', component: () => import('./views/GuardView.vue'), meta: { perm: 'dashboard.read', title: 'Payout guard' } },
     { path: '/tournaments', component: () => import('./views/TournamentsView.vue'), meta: { perm: 'tournaments.read', title: 'Tournaments' } },
     { path: '/tournaments/:id', component: () => import('./views/TournamentView.vue'), meta: { perm: 'tournaments.read', title: 'Tournament' } },
