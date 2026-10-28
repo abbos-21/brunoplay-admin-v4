@@ -363,7 +363,7 @@ function startNote() {
       </p>
       <ul class="hint">
         <li>Friends and the inviter are <b>not</b> carried over: the new player has no inviter.</li>
-        <li>It is refused while the player has a withdrawal, a gift claim or a top-up that is not finished, or while they are blocked.</li>
+        <li>It is refused while the player has a withdrawal in progress or a gift waiting for delivery, or while they are blocked. Top-up invoices they opened but did not pay are closed automatically.</li>
         <li><b>This cannot be undone.</b></li>
       </ul>
       <div class="col">
