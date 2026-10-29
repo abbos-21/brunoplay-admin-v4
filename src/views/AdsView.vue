@@ -5,7 +5,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useBusy, useLoader } from '@/composables/useBusy'
 import { useToast } from '@/composables/useToast'
 
-interface Field { key: string; label: string; help: string; kind: 'string' | 'bool' | 'number'; value: string | boolean | number }
+interface Field { key: string; label: string; help: string; kind: 'string' | 'bool' | 'number'; min: number; max: number; value: string | boolean | number }
 interface Webhook { label: string; url: string; note: string }
 interface Provider {
   id: string
@@ -51,7 +51,7 @@ function move(i: number, d: -1 | 1) {
   list.value.splice(j, 0, x)
 }
 
-const formatNames: Record<string, string> = { rewarded: 'Rewarded', interstitial: 'Interstitial', task: 'Sponsored task' }
+const formatNames: Record<string, string> = { rewarded: 'Rewarded', interstitial: 'Interstitial', task: 'Task card' }
 
 // A draft provider counts as "serving" when it is on and (for fields the admin just typed) set up. The server decides for real;
 // this only drives the warning, so a field that was just typed counts as filled.
@@ -140,7 +140,7 @@ async function copy(text: string) {
             </label>
             <label v-else-if="f.kind === 'number'" class="field">
               {{ f.label }}
-              <input v-model.number="f.value" type="number" min="0" max="120" step="1" :disabled="!canWrite || busy" style="max-width: 140px" />
+              <input v-model.number="f.value" type="number" :min="f.min" :max="f.max" step="1" :disabled="!canWrite || busy" style="max-width: 140px" />
               <span class="hint">{{ f.help }}</span>
             </label>
             <label v-else class="field">
