@@ -5,6 +5,14 @@ import { useAuth } from '@/composables/useAuth'
 import { useBusy, useLoader } from '@/composables/useBusy'
 import { num, utcDay } from '@/composables/format'
 import Modal from '@/components/Modal.vue'
+import hat from '@/assets/combo/hat.webp'
+import fish from '@/assets/combo/fish.webp'
+import net from '@/assets/combo/net.webp'
+import boots from '@/assets/combo/boots.webp'
+import boat from '@/assets/combo/boat.webp'
+import bucket from '@/assets/combo/bucket.webp'
+import backpack from '@/assets/combo/backpack.webp'
+import rod from '@/assets/combo/rod.webp'
 
 interface Img { id: number; name: string; nameEn?: string; nameRu?: string; icon: string; active?: boolean }
 interface Day { day: string; items: number[]; source: string; attempters: number; avgBest: number; claimed: number }
@@ -28,6 +36,9 @@ const days = computed(() => patterns.data.value?.patterns ?? [])
 const today = utcDay(new Date())
 
 const isUrl = (s: string) => /^(https?:)?\/\/|^\//.test(s)
+// the artwork the game itself shows for the built-in pictures (a picture added later can use an image link instead)
+const ART: Record<number, string> = { 1: hat, 2: fish, 3: net, 4: boots, 5: boat, 6: bucket, 7: backpack, 8: rod }
+const artOf = (i?: Img) => (i ? (ART[i.id] ?? (isUrl(i.icon) ? i.icon : '')) : '')
 
 // ---- patterns
 const editDay = ref('')
@@ -98,7 +109,7 @@ const activeCount = computed(() => imgs.value.filter((i) => i.active !== false).
               <td class="nowrap"><b>{{ d.day }}</b> <span v-if="d.day === today" class="badge info">today</span></td>
               <td>
                 <span v-for="(id, k) in d.items" :key="k" style="margin-right: 8px">
-                  <img v-if="byId.get(id) && isUrl(byId.get(id)!.icon)" :src="byId.get(id)!.icon" style="height: 24px; vertical-align: middle" />
+                  <img v-if="artOf(byId.get(id))" :src="artOf(byId.get(id))" :alt="byId.get(id)?.nameEn" :title="byId.get(id)?.nameEn" style="height: 34px; vertical-align: middle" />
                   <template v-else>{{ byId.get(id)?.icon ?? '#' + id }}</template>
                 </span>
               </td>
@@ -123,7 +134,7 @@ const activeCount = computed(() => imgs.value.filter((i) => i.active !== false).
     <div class="grid c4">
       <div v-for="i in imgs" :key="i.id" class="card" :style="{ opacity: i.active === false ? 0.5 : 1 }">
         <div style="font-size: 34px; line-height: 1.2; height: 44px">
-          <img v-if="isUrl(i.icon)" :src="i.icon" style="height: 40px" />
+          <img v-if="artOf(i)" :src="artOf(i)" :alt="i.nameEn ?? i.name" style="height: 40px" />
           <template v-else>{{ i.icon }}</template>
         </div>
         <b>{{ i.nameEn ?? i.name }}</b>
@@ -143,10 +154,15 @@ const activeCount = computed(() => imgs.value.filter((i) => i.active !== false).
       <div class="col">
         <label v-for="(_, k) in slots" :key="k" class="field">
           Slot {{ k + 1 }}
-          <select v-model.number="slots[k]">
-            <option :value="0" disabled>Choose…</option>
-            <option v-for="i in imgs.filter((x) => x.active !== false)" :key="i.id" :value="i.id">{{ i.icon }} {{ i.nameEn ?? i.name }}</option>
-          </select>
+          <span class="row">
+            <span style="width: 44px; height: 40px; display: inline-flex; align-items: center; justify-content: center">
+              <img v-if="artOf(byId.get(slots[k]!))" :src="artOf(byId.get(slots[k]!))" style="max-height: 40px; max-width: 44px" />
+            </span>
+            <select v-model.number="slots[k]" class="grow">
+              <option :value="0" disabled>Choose…</option>
+              <option v-for="i in imgs.filter((x) => x.active !== false)" :key="i.id" :value="i.id">{{ i.nameEn ?? i.name }}</option>
+            </select>
+          </span>
         </label>
       </div>
       <p v-if="slotError" class="err">{{ slotError }}</p>
