@@ -15,6 +15,7 @@ interface Live {
   pendingTopups: number
   queuedMessages: number
   openGiftClaims: number
+  openStarWithdrawals: number
   flaggedPlayers: number
 }
 interface Dash { from: string; to: string; series: Record<string, Point[]>; live: Live; generatedAt: string }
@@ -111,6 +112,9 @@ const starsOutBy = computed(() => breakdown('stars_out').slice(0, 8))
         </RouterLink>
         <RouterLink to="/withdrawals" style="color: inherit; text-decoration: none">
           <Stat label="Payouts needing review" :value="data.live.withdrawalsNeedingReview" hint="check before resending" :tone="data.live.withdrawalsNeedingReview ? 'bad' : undefined" />
+        </RouterLink>
+        <RouterLink to="/star-withdrawals" style="color: inherit; text-decoration: none">
+          <Stat label="Star withdrawals waiting" :value="data.live.openStarWithdrawals" :tone="data.live.openStarWithdrawals ? 'warn' : undefined" />
         </RouterLink>
         <RouterLink to="/gifts" style="color: inherit; text-decoration: none">
           <Stat label="Gift claims waiting" :value="data.live.openGiftClaims" :tone="data.live.openGiftClaims ? 'warn' : undefined" />

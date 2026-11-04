@@ -31,6 +31,7 @@ const groups: { title: string; items: Item[] }[] = [
     title: 'Money',
     items: [
       { to: '/withdrawals', label: 'Withdrawals', icon: '💸', perm: 'withdrawals.read' },
+      { to: '/star-withdrawals', label: 'Star withdrawals', icon: '⭐', perm: 'withdrawals.read' },
       { to: '/topups', label: 'Top-ups', icon: '⭐', perm: 'payments.read' },
     ],
   },

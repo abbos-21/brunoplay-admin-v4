@@ -16,6 +16,7 @@ export const router = createRouter({
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true, title: 'Sign in' } },
     { path: '/', component: () => import('./views/DashboardView.vue'), meta: { perm: 'dashboard.read', title: 'Dashboard' } },
     { path: '/withdrawals', component: () => import('./views/WithdrawalsView.vue'), meta: { perm: 'withdrawals.read', title: 'Withdrawals' } },
+    { path: '/star-withdrawals', component: () => import('./views/StarWithdrawalsView.vue'), meta: { perm: 'withdrawals.read', title: 'Star withdrawals' } },
     { path: '/topups', component: () => import('./views/TopupsView.vue'), meta: { perm: 'payments.read', title: 'Top-ups' } },
     { path: '/players', component: () => import('./views/PlayersView.vue'), meta: { perm: 'players.read', title: 'Players' } },
     { path: '/players/:id', component: () => import('./views/PlayerView.vue'), meta: { perm: 'players.read', title: 'Player' } },
