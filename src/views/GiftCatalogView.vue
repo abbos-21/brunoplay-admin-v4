@@ -128,9 +128,8 @@ function copyKey(k: string) {
       <button v-if="canWrite" class="primary" @click="openNew">+ Add a gift</button>
     </div>
     <p class="hint">
-      The gifts players can win. The <b>key</b> is what the wheel odds and the chest pool use (for example <code>heart</code> or <code>"gift":"heart"</code>);
-      it cannot be changed later. A gift without a picture shows the artwork that comes with the app. After adding a gift, put it into the odds
-      (Settings → <code>spin.odds</code>) or the chest pool (<code>chest.pool</code>), otherwise nobody can win it.
+      The gifts that exist in the game (tournament prizes and the players' gift collections). The spin and the chest pay stars, not gifts.
+      The <b>key</b> cannot be changed later. A gift without a picture shows the artwork that comes with the app.
     </p>
 
     <div class="card flush">
