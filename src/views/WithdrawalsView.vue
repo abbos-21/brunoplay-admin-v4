@@ -94,6 +94,11 @@ async function reject() {
   }
 }
 
+/** posts a short test message to the payouts channel (Settings → payouts.channel): is the bot allowed to write there? */
+async function testChannel() {
+  await run(() => api.post('/admin/payout-feed/test'), 'A test post was sent to the payouts channel. Look at the channel.')
+}
+
 async function copy(s: string) {
   toast.ok((await copyText(s)) ? 'Copied' : 'Could not copy')
 }
@@ -111,10 +116,12 @@ async function copy(s: string) {
         <option value="REJECTED">Rejected</option>
         <option value="">All</option>
       </select>
+      <button v-if="canWrite" :disabled="busy" title="Settings → payouts.channel: the channel where every paid withdrawal is posted" @click="testChannel">Test the payouts channel</button>
       <button @click="load()">Refresh</button>
     </div>
 
     <p class="hint">
+      Every paid withdrawal is also posted by the bot to the public payouts channel (set it in Settings → <b>payouts.channel</b>).
       Pay manually: copy the address, send the TON from your wallet, then press <b>Complete</b> with the transaction hash. <b>Reject</b> returns the coins to the player.
       A row marked <span class="badge bad">needs review</span> is an automatic payout whose result is unclear: look at the payout wallet history before doing anything.
     </p>
