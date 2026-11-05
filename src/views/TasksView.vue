@@ -9,7 +9,7 @@ import Modal from '@/components/Modal.vue'
 interface Task {
   id: number
   category: 'MAIN' | 'OTHER'
-  type: 'CHANNEL_JOIN' | 'INVITE_FRIENDS' | 'OPEN_LINK' | 'WATCH_ADS'
+  type: 'CHANNEL_JOIN' | 'CHANNEL_BOOST' | 'INVITE_FRIENDS' | 'OPEN_LINK' | 'WATCH_ADS'
   titleEn?: string
   titleRu?: string
   descEn?: string
@@ -54,6 +54,7 @@ const canWrite = computed(() => auth.can('tasks.write'))
 
 const TYPE_LABEL: Record<string, string> = {
   CHANNEL_JOIN: 'Join a channel',
+  CHANNEL_BOOST: 'Boost a channel (Telegram Premium)',
   INVITE_FRIENDS: 'Invite friends',
   OPEN_LINK: 'Open a link',
   WATCH_ADS: 'Watch ads',
@@ -86,8 +87,11 @@ function openEdit(t: Task) {
 async function save() {
   formError.value = ''
   if (!form.titleEn.trim() || !form.titleRu.trim()) return (formError.value = 'The title is required in both languages.')
-  if (form.type === 'CHANNEL_JOIN' && !form.channelUsername.trim()) return (formError.value = 'Enter the channel username (the bot must be an admin there).')
-  if ((form.type === 'OPEN_LINK' || form.type === 'CHANNEL_JOIN') && !form.url.trim()) return (formError.value = 'Enter the link.')
+  const isChannel = form.type === 'CHANNEL_JOIN' || form.type === 'CHANNEL_BOOST'
+  if (isChannel && !form.channelUsername.trim()) return (formError.value = 'Enter the channel username (the bot must be an admin there).')
+  // a boost task without a link opens the channel's own boost page
+  if (form.type === 'CHANNEL_BOOST' && !form.url.trim()) form.url = `https://t.me/boost/${form.channelUsername.trim().replace(/^@/, '')}`
+  if ((form.type === 'OPEN_LINK' || isChannel) && !form.url.trim()) return (formError.value = 'Enter the link.')
   if (!Number(form.rewardCoins) && !Number(form.rewardStars)) return (formError.value = 'Give a reward in coins or stars.')
   const body = {
     ...form,
@@ -189,11 +193,15 @@ async function remove() {
         <label class="field">Title (Russian)<input v-model="form.titleRu" maxlength="200" /></label>
         <label class="field">Description (English)<textarea v-model="form.descEn" maxlength="500" /></label>
         <label class="field">Description (Russian)<textarea v-model="form.descRu" maxlength="500" /></label>
-        <label v-if="form.type === 'CHANNEL_JOIN'" class="field">Channel username (without @)
+        <label v-if="form.type === 'CHANNEL_JOIN' || form.type === 'CHANNEL_BOOST'" class="field">Channel username (without @)
           <input v-model="form.channelUsername" placeholder="brunoplay_news" />
-          <span class="hint">The bot must be an administrator of the channel to verify membership.</span>
+          <span v-if="form.type === 'CHANNEL_BOOST'" class="hint">Any channel you own. The bot must be an administrator of the channel to see its boosts. Only Telegram Premium users can boost, say so in the description.</span>
+          <span v-else class="hint">The bot must be an administrator of the channel to verify membership.</span>
         </label>
-        <label v-if="form.type === 'CHANNEL_JOIN' || form.type === 'OPEN_LINK'" class="field">Link<input v-model="form.url" placeholder="https://t.me/…" /></label>
+        <label v-if="form.type === 'CHANNEL_JOIN' || form.type === 'CHANNEL_BOOST' || form.type === 'OPEN_LINK'" class="field">Link
+          <input v-model="form.url" :placeholder="form.type === 'CHANNEL_BOOST' ? 'https://t.me/boost/your_channel' : 'https://t.me/…'" />
+          <span v-if="form.type === 'CHANNEL_BOOST'" class="hint">Leave empty to use https://t.me/boost/ followed by the channel username.</span>
+        </label>
         <label v-if="form.type === 'INVITE_FRIENDS' || form.type === 'WATCH_ADS'" class="field">
           {{ form.type === 'INVITE_FRIENDS' ? 'Friends to invite' : 'Ads to watch' }}
           <input v-model.number="form.required" type="number" min="1" max="1000" />
