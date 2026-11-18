@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { api } from '@/api/client'
 import { useAuth } from '@/composables/useAuth'
 import { useBusy, useLoader } from '@/composables/useBusy'
+import { useToast } from '@/composables/useToast'
 import { num, utcDay } from '@/composables/format'
 import Modal from '@/components/Modal.vue'
 import hat from '@/assets/combo/hat.webp'
@@ -19,6 +20,7 @@ interface Day { day: string; items: number[]; source: string; attempters: number
 
 const auth = useAuth()
 const { busy, run } = useBusy()
+const toast = useToast()
 const canWrite = computed(() => auth.can('combo.write'))
 
 const images = useLoader(() => api.get<{ images: Img[] | null }>('/admin/combo/images'))
@@ -85,6 +87,15 @@ async function savePic() {
     images.load(true)
   }
 }
+
+// ---- the ambassadors channel
+async function postToChannel() {
+  if (!window.confirm("Post today's combo to the ambassadors channel now? (The daily post goes out by itself when the game day starts, once the switch and the channel are set in Settings. A second post replaces the pin of the first.)")) return
+  const r = await run(() => api.post<{ pinned: boolean; pinError?: string }>('/admin/combo/post-now'))
+  if (!r) return
+  if (r.pinned) toast.ok('Posted and pinned in the ambassadors channel')
+  else toast.ok('Posted, but it could not be pinned (give the bot the right to pin messages): ' + (r.pinError ?? ''))
+}
 const activeCount = computed(() => imgs.value.filter((i) => i.active !== false).length)
 </script>
 
@@ -93,11 +104,14 @@ const activeCount = computed(() => imgs.value.filter((i) => i.active !== false).
     <div class="page-head">
       <h1>Daily combo</h1>
       <span class="grow" />
+      <button v-if="canWrite" :disabled="busy" @click="postToChannel">Post today's combo to the channel</button>
       <button v-if="canWrite" class="primary" @click="openNewDay">+ Schedule a day</button>
     </div>
     <p class="hint">
       Each game day (UTC) has one secret pattern of 4 different pictures, the same for every player. If a day has no scheduled pattern the server draws one at random.
       A day that has started cannot be changed. The pattern is never sent to the app.
+      The ambassadors channel gets each day's combo (a picture and the names, in Russian and English) by itself when the day starts: turn it on and set the channel
+      in Settings (<b>ambassadors.combo_enabled</b>, <b>ambassadors.channel</b>); the bot must be an administrator of the channel who can post and pin messages.
     </p>
 
     <div class="card flush mb">
