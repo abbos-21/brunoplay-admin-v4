@@ -112,7 +112,7 @@ const isSelf = computed(() => editing.value === me.value?.id)
           <select v-model="f.role" :disabled="isSelf"><option v-for="r in roles" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option></select>
           <span class="hint">{{ ROLE_HELP[f.role] }}</span>
         </label>
-        <label class="field">Telegram id <span class="hint">(receives broadcast tests; get it from @userinfobot)</span><input v-model="f.telegramId" inputmode="numeric" /></label>
+        <label class="field">Telegram id <span class="hint">(receives broadcast tests, and opens the Roulette game for this person while it is not public; get it from @userinfobot)</span><input v-model="f.telegramId" inputmode="numeric" /></label>
         <label class="field">{{ editing === 'new' ? 'Starting password' : 'New password (leave empty to keep the current one)' }}
           <input v-model="f.password" type="password" autocomplete="new-password" />
           <span class="hint">{{ PASSWORD_HINT }}</span>
