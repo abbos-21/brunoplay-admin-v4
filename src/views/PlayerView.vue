@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import { useAuth } from '@/composables/useAuth'
 import { useBusy, useLoader } from '@/composables/useBusy'
-import { dateTime, num } from '@/composables/format'
+import { dateTime, num, tonNano } from '@/composables/format'
 import { useToast } from '@/composables/useToast'
 import Modal from '@/components/Modal.vue'
 import ReasonModal from '@/components/ReasonModal.vue'
@@ -44,6 +44,10 @@ interface Player {
   resetTelegramId: number | null
   createdAt: string
   lastSeenAt: string
+  withdrawnNano: number
+  withdrawnCount: number
+  pendingWithdrawalNano: number
+  pendingWithdrawalCount: number
 }
 interface Entry {
   id: number
@@ -253,6 +257,11 @@ function startNote() {
               <button v-if="canManage && !p.archived" class="sm" style="margin-left: 8px" @click="openBalance">Edit coins and stars</button>
             </dd>
             <dt>Stars</dt><dd><b>{{ num(p.stars) }}</b></dd>
+            <dt>Withdrawn in TON</dt>
+            <dd>
+              <b>{{ tonNano(p.withdrawnNano) }}</b> <span class="muted">· {{ p.withdrawnCount }} paid</span>
+              <span v-if="p.pendingWithdrawalCount" class="muted"> · {{ tonNano(p.pendingWithdrawalNano) }} still in progress ({{ p.pendingWithdrawalCount }})</span>
+            </dd>
             <dt>Coins earned in total</dt><dd>{{ num(p.totalCoinsEarned) }}</dd>
             <dt>Level</dt><dd>{{ p.level }} <span class="muted">(rate card {{ p.miningLevel }}, capacity card {{ p.capacityLevel }})</span></dd>
             <dt>Friend bonus earned</dt><dd>{{ num(p.friendBonusCoins) }} coins</dd>
