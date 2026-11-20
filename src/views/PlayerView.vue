@@ -49,6 +49,17 @@ interface Player {
   pendingWithdrawalNano: number
   pendingWithdrawalCount: number
 }
+interface Referral {
+  id: number
+  username: string
+  firstName: string
+  lastName: string
+  level: number
+  counted: boolean
+  isBlocked: boolean
+  archived: boolean
+  createdAt: string
+}
 interface Entry {
   id: number
   currency: string
@@ -181,6 +192,29 @@ async function deletePlayer() {
   }
 }
 
+// ---- referrals (the players this player invited), a page at a time
+const referrals = ref<Referral[]>([])
+const refTotal = ref(0)
+const refCounted = ref(0)
+const refMore = ref(false)
+const refLoading = ref(false)
+async function loadReferrals(append = false) {
+  refLoading.value = true
+  try {
+    const before = append && referrals.value.length ? referrals.value[referrals.value.length - 1]!.id : 0
+    const r = await api.get<{ referrals: Referral[]; total: number; counted: number; more: boolean }>(`/admin/players/${id}/referrals`, { before, limit: 20 })
+    referrals.value = append ? [...referrals.value, ...r.referrals] : r.referrals
+    refTotal.value = r.total
+    refCounted.value = r.counted
+    refMore.value = r.more
+  } catch (e) {
+    toast.error(e)
+  } finally {
+    refLoading.value = false
+  }
+}
+const refName = (r: Referral) => [r.firstName, r.lastName].filter(Boolean).join(' ') || (r.username ? '@' + r.username : '—')
+
 // ---- ledger
 const entries = ref<Entry[]>([])
 const ledgerMore = ref(false)
@@ -201,6 +235,7 @@ async function loadLedger(append = false) {
 }
 const shown = computed(() => entries.value.filter((e) => !currency.value || e.currency === currency.value))
 onMounted(() => {
+  loadReferrals()
   if (canLedger.value) loadLedger()
 })
 
@@ -306,6 +341,29 @@ function startNote() {
         <textarea v-model="note" :disabled="!canNote" placeholder="Write a note for the team" @focus="startNote" @input="noteTouched = true" />
         <div v-if="canNote" class="row" style="margin-top: 8px"><button class="primary" :disabled="busy || !noteTouched" @click="saveNote">Save note</button></div>
         <p v-if="!noteTouched && p.adminNote" class="hint" style="white-space: pre-wrap">Current note: {{ p.adminNote }}</p>
+      </div>
+
+      <div class="card flush mb">
+        <div class="row" style="padding: 14px 18px">
+          <h2 style="margin: 0">Referrals</h2>
+          <span class="muted">{{ refTotal }} invited · {{ refCounted }} counted (reached level 2)</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Player</th><th>Level</th><th>Counted</th><th>Joined</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr v-for="r in referrals" :key="r.id" style="cursor: pointer" @click="router.push(`/players/${r.id}`)">
+                <td><a :href="`/players/${r.id}`" @click.prevent.stop="router.push(`/players/${r.id}`)">#{{ r.id }}</a> {{ refName(r) }} <span v-if="r.username" class="muted">@{{ r.username }}</span></td>
+                <td>{{ r.level }}</td>
+                <td>{{ r.counted ? 'yes' : 'not yet' }}</td>
+                <td class="nowrap">{{ dateTime(r.createdAt) }}</td>
+                <td><span v-if="r.isBlocked" class="badge warn">blocked</span><span v-else-if="r.archived" class="badge">erased</span><span v-else class="muted">—</span></td>
+              </tr>
+              <tr v-if="!referrals.length && !refLoading"><td colspan="5" class="empty">Nobody was invited by this player.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="refMore" class="pager"><button :disabled="refLoading" @click="loadReferrals(true)">Show more</button></div>
       </div>
 
       <div v-if="canLedger" class="card flush">
