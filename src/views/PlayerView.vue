@@ -88,6 +88,7 @@ const canBonus = computed(() => auth.can('players.inviteBonus'))
 const canDelete = computed(() => auth.can('players.delete'))
 const canLedger = computed(() => auth.can('ledger.read'))
 const canManage = computed(() => auth.can('players.manage'))
+const canMessage = computed(() => auth.can('notifications.write'))
 
 const flags = computed(() => {
   const f = p.value?.flags
@@ -189,6 +190,24 @@ const confirmText = ref('')
 async function deletePlayer() {
   if (await run(() => api.post(`/admin/players/${id}/delete`, { confirm: true }), 'Player data erased')) {
     router.replace('/players')
+  }
+}
+
+// ---- a message to this player through the bot
+const msgText = ref('')
+const msgError = ref('')
+async function sendMessage() {
+  const text = msgText.value.trim()
+  if (!text) return
+  if (!window.confirm('Send this message to the player now through the bot?')) return
+  msgError.value = ''
+  try {
+    await api.post(`/admin/players/${id}/message`, { text })
+    toast.ok('Message sent')
+    msgText.value = ''
+  } catch (e) {
+    msgError.value = (e as { message?: string })?.message || 'The message could not be sent'
+    toast.error(e)
   }
 }
 
@@ -341,6 +360,20 @@ function startNote() {
         <textarea v-model="note" :disabled="!canNote" placeholder="Write a note for the team" @focus="startNote" @input="noteTouched = true" />
         <div v-if="canNote" class="row" style="margin-top: 8px"><button class="primary" :disabled="busy || !noteTouched" @click="saveNote">Save note</button></div>
         <p v-if="!noteTouched && p.adminNote" class="hint" style="white-space: pre-wrap">Current note: {{ p.adminNote }}</p>
+      </div>
+
+      <div v-if="canMessage && !p.archived" class="card mb">
+        <h2>Message the player</h2>
+        <p class="hint" style="margin-top: 0">
+          Sent now through the bot, as plain text, in the language you write it. It reaches only players who started the bot and did not block it
+          ({{ p.botBlocked ? 'this player blocked the bot' : p.botStarted ? 'this player started the bot' : 'this player has never started the bot' }}).
+        </p>
+        <textarea v-model="msgText" maxlength="3500" placeholder="Write the message" />
+        <p v-if="msgError" class="err" style="margin: 6px 0 0">{{ msgError }}</p>
+        <div class="row" style="margin-top: 8px">
+          <button class="primary" :disabled="!msgText.trim()" @click="sendMessage">Send message</button>
+          <span class="muted">{{ msgText.length }} / 3500</span>
+        </div>
       </div>
 
       <div class="card flush mb">
