@@ -60,6 +60,17 @@ interface Referral {
   archived: boolean
   createdAt: string
 }
+interface GameSession {
+  game: 'spin' | 'roulette' | 'chest'
+  at: string
+  detail: string
+  spent: number
+  prizeType: string
+  prizeValue: number
+  gift: string
+  giftName: string
+  ref: string
+}
 interface Entry {
   id: number
   currency: string
@@ -211,6 +222,31 @@ async function sendMessage() {
   }
 }
 
+// ---- what the player won in the games (Spin, Roulette, Chest), a page at a time
+const sessions = ref<GameSession[]>([])
+const gamesMore = ref(false)
+const gamesLoading = ref(false)
+const gameFilter = ref('')
+const GAME_LABEL: Record<string, string> = { spin: 'Fortune Spin', roulette: 'Roulette', chest: 'Mega Chest' }
+async function loadGames(append = false) {
+  gamesLoading.value = true
+  try {
+    const offset = append ? sessions.value.length : 0
+    const r = await api.get<{ sessions: GameSession[]; more: boolean }>(`/admin/players/${id}/games`, { offset, limit: 30, game: gameFilter.value || undefined })
+    sessions.value = append ? [...sessions.value, ...r.sessions] : r.sessions
+    gamesMore.value = r.more
+  } catch (e) {
+    toast.error(e)
+  } finally {
+    gamesLoading.value = false
+  }
+}
+function prizeText(x: GameSession) {
+  if (x.prizeType === 'gift') return ''
+  if (x.prizeType === 'empty') return 'nothing'
+  return `${num(x.prizeValue)} ${x.prizeType}`
+}
+
 // ---- referrals (the players this player invited), a page at a time
 const referrals = ref<Referral[]>([])
 const refTotal = ref(0)
@@ -254,6 +290,7 @@ async function loadLedger(append = false) {
 }
 const shown = computed(() => entries.value.filter((e) => !currency.value || e.currency === currency.value))
 onMounted(() => {
+  loadGames()
   loadReferrals()
   if (canLedger.value) loadLedger()
 })
@@ -374,6 +411,39 @@ function startNote() {
           <button class="primary" :disabled="!msgText.trim()" @click="sendMessage">Send message</button>
           <span class="muted">{{ msgText.length }} / 3500</span>
         </div>
+      </div>
+
+      <div class="card flush mb">
+        <div class="row" style="padding: 14px 18px">
+          <h2 style="margin: 0">Game history</h2>
+          <span class="muted">what the player won, newest first; gifts are marked</span>
+          <span class="grow" />
+          <select v-model="gameFilter" @change="loadGames()">
+            <option value="">All games</option>
+            <option value="spin">Fortune Spin</option>
+            <option value="roulette">Roulette</option>
+            <option value="chest">Mega Chest</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Game</th><th>Won</th><th class="right">Paid (stars)</th></tr></thead>
+            <tbody>
+              <tr v-for="(x, i) in sessions" :key="x.game + x.ref + i">
+                <td class="nowrap">{{ dateTime(x.at) }}</td>
+                <td>{{ GAME_LABEL[x.game] ?? x.game }}<span v-if="x.detail" class="muted"> · {{ x.detail }}</span></td>
+                <td>
+                  <span v-if="x.prizeType === 'gift'" class="badge ok">🎁 {{ x.giftName }}</span>
+                  <span v-if="x.prizeType === 'gift'" class="muted"> worth {{ num(x.prizeValue) }} stars</span>
+                  <template v-else>{{ prizeText(x) }}</template>
+                </td>
+                <td class="right">{{ num(x.spent) }}</td>
+              </tr>
+              <tr v-if="!sessions.length && !gamesLoading"><td colspan="4" class="empty">No games played yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="gamesMore" class="pager"><button :disabled="gamesLoading" @click="loadGames(true)">Show more</button></div>
       </div>
 
       <div class="card flush mb">
