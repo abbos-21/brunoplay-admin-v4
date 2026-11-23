@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { api } from '@/api/client'
 import { useAuth } from '@/composables/useAuth'
 import { useBusy } from '@/composables/useBusy'
-import { dateTime, num, tone } from '@/composables/format'
+import { dateTime, num, tone, tonNano } from '@/composables/format'
 import { useToast } from '@/composables/useToast'
 import ReasonModal from '@/components/ReasonModal.vue'
 import Modal from '@/components/Modal.vue'
@@ -73,6 +73,23 @@ async function refund() {
   }
 }
 
+// ---- the live TON price of the packs (Fragment)
+interface Quote { packStars: number; stars: number; fragmentNano: number; priceNano: number; fetchedAt: string | null; fresh: boolean }
+interface Quotes { auto: boolean; keySet: boolean; margin: number; quotes: Quote[]; maxAge: number }
+const quotes = ref<Quotes | null>(null)
+async function loadQuotes() {
+  try {
+    quotes.value = await api.get<Quotes>('/admin/topup/ton-quotes')
+  } catch (e) {
+    toast.error(e)
+  }
+}
+async function refreshQuotes() {
+  const r = await run(() => api.post<Quotes>('/admin/topup/ton-quotes/refresh'), 'Prices refreshed from Fragment')
+  if (r) quotes.value = r
+}
+onMounted(loadQuotes)
+
 const unit = (o: Order) => (o.method === 'TON' ? 'nanoTON' : 'Telegram Stars')
 </script>
 
@@ -94,6 +111,39 @@ const unit = (o: Order) => (o.method === 'TON' ? 'nanoTON' : 'Telegram Stars')
       Telegram payments are credited automatically. A TON order is credited when the transfer is found on the chain; if a player paid but
       nothing was credited, check the wallet and use <b>Credit</b>. <b>Refund</b> returns a Telegram payment and takes the stars back.
     </p>
+
+    <div class="card flush mb">
+      <div class="row" style="padding: 14px 18px">
+        <h2 style="margin: 0">Live TON price (Fragment)</h2>
+        <span v-if="quotes" class="badge" :class="quotes.auto ? 'ok' : ''">{{ quotes.auto ? 'automatic price is ON' : 'automatic price is OFF' }}</span>
+        <span class="grow" />
+        <button v-if="canWrite" :disabled="busy" @click="refreshQuotes">Refresh prices now</button>
+      </div>
+      <p class="hint" style="padding: 0 18px">
+        Each pack is priced as its stars plus its bonus (100 + 10 is Fragment's price for 110 stars) plus the margin
+        ({{ quotes?.margin ?? '…' }}%). Turn it on with <b>Automatic TON price</b> in Settings (Top-up group); the key
+        <code>FRAGMENT_API_KEY</code> goes in the server .env{{ quotes && !quotes.keySet ? ' (it is not set now)' : '' }}.
+        A price older than {{ quotes?.maxAge ?? 30 }} minutes is not used: the manual rate takes over and you get an alert.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pack</th><th class="right">Quoted stars (pack + bonus)</th><th class="right">Fragment</th><th class="right">Player pays</th><th>Updated</th></tr></thead>
+          <tbody>
+            <tr v-for="q in quotes?.quotes ?? []" :key="q.packStars">
+              <td>{{ num(q.packStars) }}</td>
+              <td class="right">{{ num(q.stars) }}</td>
+              <td class="right">{{ q.fetchedAt ? tonNano(q.fragmentNano) : '—' }}</td>
+              <td class="right"><b>{{ q.fresh ? tonNano(q.priceNano) : '—' }}</b></td>
+              <td class="nowrap">
+                <template v-if="q.fetchedAt">{{ dateTime(q.fetchedAt) }} <span v-if="!q.fresh" class="badge warn">too old</span></template>
+                <span v-else class="muted">no price yet</span>
+              </td>
+            </tr>
+            <tr v-if="!(quotes?.quotes ?? []).length"><td colspan="5" class="empty">No packs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <div class="card flush">
       <div class="table-wrap">
