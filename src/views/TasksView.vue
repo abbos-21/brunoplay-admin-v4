@@ -9,7 +9,7 @@ import Modal from '@/components/Modal.vue'
 interface Task {
   id: number
   category: 'MAIN' | 'OTHER'
-  type: 'CHANNEL_JOIN' | 'CHANNEL_BOOST' | 'INVITE_FRIENDS' | 'OPEN_LINK' | 'WATCH_ADS'
+  type: 'CHANNEL_JOIN' | 'CHANNEL_BOOST' | 'INVITE_FRIENDS' | 'OPEN_LINK' | 'WATCH_ADS' | 'BOT_START'
   titleEn?: string
   titleRu?: string
   descEn?: string
@@ -58,6 +58,7 @@ const TYPE_LABEL: Record<string, string> = {
   INVITE_FRIENDS: 'Invite friends',
   OPEN_LINK: 'Open a link',
   WATCH_ADS: 'Watch ads',
+  BOT_START: 'Start the bot',
 }
 
 const empty = (): Form => ({
@@ -91,7 +92,7 @@ async function save() {
   if (isChannel && !form.channelUsername.trim()) return (formError.value = 'Enter the channel username (the bot must be an admin there).')
   // a boost task without a link opens the channel's own boost page
   if (form.type === 'CHANNEL_BOOST' && !form.url.trim()) form.url = `https://t.me/boost/${form.channelUsername.trim().replace(/^@/, '')}`
-  if ((form.type === 'OPEN_LINK' || isChannel) && !form.url.trim()) return (formError.value = 'Enter the link.')
+  if ((form.type === 'OPEN_LINK' || form.type === 'BOT_START' || isChannel) && !form.url.trim()) return (formError.value = 'Enter the link.')
   if (!Number(form.rewardCoins) && !Number(form.rewardStars)) return (formError.value = 'Give a reward in coins or stars.')
   const body = {
     ...form,
@@ -198,9 +199,10 @@ async function remove() {
           <span v-if="form.type === 'CHANNEL_BOOST'" class="hint">Any channel you own. The bot must be an administrator of the channel to see its boosts. Only Telegram Premium users can boost, say so in the description.</span>
           <span v-else class="hint">The bot must be an administrator of the channel to verify membership.</span>
         </label>
-        <label v-if="form.type === 'CHANNEL_JOIN' || form.type === 'CHANNEL_BOOST' || form.type === 'OPEN_LINK'" class="field">Link
+        <label v-if="form.type === 'CHANNEL_JOIN' || form.type === 'CHANNEL_BOOST' || form.type === 'OPEN_LINK' || form.type === 'BOT_START'" class="field">Link
           <input v-model="form.url" :placeholder="form.type === 'CHANNEL_BOOST' ? 'https://t.me/boost/your_channel' : 'https://t.me/…'" />
           <span v-if="form.type === 'CHANNEL_BOOST'" class="hint">Leave empty to use https://t.me/boost/ followed by the channel username.</span>
+          <span v-if="form.type === 'BOT_START'" class="hint">The link to the bot, for example https://t.me/bruno_play_bot?start=task. The task is done when the player has pressed Start in the bot (the bot's webhook must be working).</span>
         </label>
         <label v-if="form.type === 'INVITE_FRIENDS' || form.type === 'WATCH_ADS'" class="field">
           {{ form.type === 'INVITE_FRIENDS' ? 'Friends to invite' : 'Ads to watch' }}
